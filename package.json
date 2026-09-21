@@ -45,6 +45,9 @@
     "pi-web-fetch-demo.mp4"
   ],
   "devDependencies": {
+    "@earendil-works/pi-ai": "0.86.1",
+    "@earendil-works/pi-coding-agent": "0.86.1",
+    "@earendil-works/pi-tui": "0.86.1",
     "@types/turndown": "^5.0.6",
     "esbuild": "^0.28.1",
     "typescript": "^7.0.2"
