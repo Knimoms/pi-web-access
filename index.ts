@@ -86,6 +86,7 @@ import {
 	type RecencyFilter,
 	type ResearchArtifact,
 } from "./source-check.ts";
+import { registerWebToolActivation, type WebActivationTool } from "./tool-activation.ts";
 
 // Match pi-ai's StringEnum without loading its compat barrel during registration.
 function StringEnum<T extends string[]>(values: T, options?: { description?: string; default?: T[number] }) {
@@ -338,6 +339,7 @@ function resolveToolNames(config: WebSearchConfig): ToolNames {
 	const seen = new Map<string, keyof ToolNames>();
 	for (const key of registeredKeys) {
 		const name = names[key];
+		if (name === "web_enable") throw new Error(`toolNames.${key} in ${WEB_SEARCH_CONFIG_PATH} uses reserved loader name web_enable`);
 		const previous = seen.get(name);
 		if (previous) throw new Error(`toolNames.${key} duplicates toolNames.${previous} in ${WEB_SEARCH_CONFIG_PATH}`);
 		seen.set(name, key);
@@ -3163,6 +3165,14 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 	}
+
+	const activationTools: WebActivationTool[] = [
+		...(webSearchEnabled ? [{ name: toolNames.webSearch, capability: "search" as const }] : []),
+		...(sourceCheckEnabled ? [{ name: toolNames.sourceCheck, capability: "source-check" as const }] : []),
+		...(fetchContentEnabled ? [{ name: toolNames.fetchContent, capability: "fetch" as const }] : []),
+		...(getSearchContentEnabled ? [{ name: toolNames.getSearchContent, capability: "stored-content" as const }] : []),
+	];
+	registerWebToolActivation(pi, activationTools);
 
 	if (isCommandEnabled(initConfig, "websearch")) pi.registerCommand("websearch", {
 		description: "Open web search curator",

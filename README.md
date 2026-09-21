@@ -980,6 +980,10 @@ Remote curator sessions print the URL instead of trying to open a browser by def
 
 When `false`, a requested Curator session never tries to open a Glimpse window or a browser and always prints the URL for you to open manually. For requested local-only Curator sessions it defaults to `true`; remote curator sessions print the URL unless you set `autoOpenBrowser: true` explicitly. This is worth setting locally when you would rather paste the link into a specific browser than have one launched for you. It changes nothing about where the server binds; that is `curatorRemote`'s job alone.
 
+### Tool activation
+
+Pi starts normal sessions with the compact `web_enable` tool. Its guidance lists only the web capabilities enabled in `web-search.json`. The model can call it without a human toggle; the configured search, source-check, fetch, and stored-content tools then appear on the immediately following model request. Disabled tools stay unregistered, and alternate `toolNames` are preserved. Warm and resumed sessions retain their recorded tool selection.
+
 ### Shortcuts
 
 Both shortcuts are configurable via `~/.pi/agent/web-search.json`:
