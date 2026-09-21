@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { createModels, fauxAssistantMessage, fauxProvider, fauxToolCall, getCurrentTools } from "@earendil-works/pi-ai";
+import { createModels, fauxAssistantMessage, fauxProvider, fauxToolCall, getCurrentTools, getSystemMessageText } from "@earendil-works/pi-ai";
 import { createAgentSession, DefaultResourceLoader, SessionManager } from "@earendil-works/pi-coding-agent";
 
 const extensionPath = new URL("../index.ts", import.meta.url).pathname;
@@ -29,13 +29,17 @@ async function runNative(config = {}) {
 			},
 		});
 		const requests = [];
+		const captureRequest = (context) => requests.push({
+			tools: getCurrentTools(context.messages),
+			systemText: context.messages.filter(message => message.role === "system").map(getSystemMessageText).join("\n\n"),
+		});
 		faux.setResponses([
 			(context) => {
-				requests.push(getCurrentTools(context.messages));
+				captureRequest(context);
 				return fauxAssistantMessage(fauxToolCall("web_enable", {}), { stopReason: "toolUse" });
 			},
 			(context) => {
-				requests.push(getCurrentTools(context.messages));
+				captureRequest(context);
 				return fauxAssistantMessage("done");
 			},
 		]);
@@ -66,15 +70,17 @@ async function runNative(config = {}) {
 
 test("native Pi sends configured web schemas on the request immediately after activation", async () => {
 	const requests = await runNative();
-	assert.deepEqual(requests[0].map(tool => tool.name), ["web_enable"]);
-	assert.deepEqual(requests[1].map(tool => tool.name), ["web_enable", "web_search", "source_check", "fetch_content", "get_search_content"]);
-	assert.ok(requests[0].reduce((sum, tool) => sum + JSON.stringify(tool).length, 0) <= 700);
-	assert.ok(requests[1].reduce((sum, tool) => sum + JSON.stringify(tool).length, 0) <= 11_924);
+	assert.match(requests[0].systemText, /pi-web-access/i);
+	assert.match(requests[0].systemText, /call web_enable/i);
+	assert.deepEqual(requests[0].tools.map(tool => tool.name), ["web_enable"]);
+	assert.deepEqual(requests[1].tools.map(tool => tool.name), ["web_enable", "web_search", "source_check", "fetch_content", "get_search_content"]);
+	assert.ok(requests[0].tools.reduce((sum, tool) => sum + JSON.stringify(tool).length, 0) <= 700);
+	assert.ok(requests[1].tools.reduce((sum, tool) => sum + JSON.stringify(tool).length, 0) <= 11_924);
 
 	const renamed = await runNative({ toolNames: { webSearch: "research_web", sourceCheck: "verify_sources", fetchContent: "grab_content", getSearchContent: "open_content" } });
-	assert.deepEqual(renamed[1].map(tool => tool.name), ["web_enable", "research_web", "verify_sources", "grab_content", "open_content"]);
+	assert.deepEqual(renamed[1].tools.map(tool => tool.name), ["web_enable", "research_web", "verify_sources", "grab_content", "open_content"]);
 
 	const fetchOnly = await runNative({ tools: { webSearch: { enabled: false }, sourceCheck: { enabled: false }, getSearchContent: { enabled: false } } });
-	assert.deepEqual(fetchOnly[0].map(tool => tool.name), ["web_enable"]);
-	assert.deepEqual(fetchOnly[1].map(tool => tool.name), ["web_enable", "fetch_content"]);
+	assert.deepEqual(fetchOnly[0].tools.map(tool => tool.name), ["web_enable"]);
+	assert.deepEqual(fetchOnly[1].tools.map(tool => tool.name), ["web_enable", "fetch_content"]);
 });

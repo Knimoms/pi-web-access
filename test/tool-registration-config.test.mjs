@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -70,6 +71,20 @@ test("malformed config falls back during extension registration", () => {
 	assert.equal(child.status, 0, child.stderr);
 	const registered = JSON.parse(child.stdout);
 	assert.deepEqual(registered.tools.map(tool => tool.name), ["web_search", "source_check", "fetch_content", "get_search_content", "web_enable"]);
+});
+
+test("default public execution tool definitions retain their compatibility hashes", () => {
+	const expected = {
+		web_search: "83c6bf3970c08d3888070c4fa071834451c65c537623ba25e43bf5bbdd6d3ad6",
+		source_check: "bb59650ecbfcd060b9c1b2d1858a577316c11363087ce6c2dc91b84a228c71da",
+		fetch_content: "0082465bae0f184988fd37fe152cad9c7a236e410747ba6770013895a28978d4",
+		get_search_content: "3ff95c08b734aec4d888b89f6b139392f72ebe61f653fd7068d8e7491caac89f",
+	};
+	const tools = registered({}).tools.filter(tool => tool.name !== "web_enable");
+	assert.deepEqual(Object.fromEntries(tools.map(({ name, description, parameters }) => [
+		name,
+		createHash("sha256").update(JSON.stringify({ name, description, parameters })).digest("hex"),
+	])), expected);
 });
 
 test("search tools constrain numResults to integer values from 1 through 20", () => {
